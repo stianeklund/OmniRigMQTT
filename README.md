@@ -82,6 +82,17 @@ To interact with OmniRigMQTT:
  }
 ```
 
+```json
+Payload: Freq: 28074000
+TxFreq: 28075000
+Mode: USB
+IsTransmitting: false
+IsSplit: true
+IsConnected: true
+ActiveRadioNr: 1
+RadioName: TS-590
+```
+
 ## Supported MQTT Commands
 
 OmniRigMQTT supports the following commands via MQTT:
