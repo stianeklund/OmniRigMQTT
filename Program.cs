@@ -39,7 +39,7 @@ public class Program
 
             // Start periodic status updates
             _ = Task.Run(() =>
-                _omniRigMqtt.PublishRadioInfoPeriodically(TimeSpan.FromMilliseconds(500), TimeSpan.FromMinutes(2)));
+                _omniRigMqtt.PublishRadioInfoPeriodically(TimeSpan.FromMilliseconds(100), TimeSpan.FromMinutes(2)));
 
             Console.WriteLine("Starting OmniRigMQTT..");
             Console.WriteLine("Starting N1MM UDP message generation & receiver");

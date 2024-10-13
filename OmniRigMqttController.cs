@@ -458,19 +458,21 @@ public class OmniRigMqttController : IDisposable
             {
                 var radioInfo = await _omniRigInterface.GetRadioInfoAsyncRig1();
 
+                // Always publish to frequent topic if there's a change
+                if (!radioInfo.Equals(_lastPublishedRadioInfo))
+                {
+                    await PublishToTopic(FrequentTopic, radioInfo);
+                    _lastPublishedRadioInfo = radioInfo;
+                    Console.WriteLine($"Published to frequent topic: {FrequentTopic}");
+                }
+
                 // Check if it's time for a sporadic update
                 if (DateTime.UtcNow - _lastSporadicUpdate >= sporadicInterval)
                 {
                     await PublishToTopic(SporadicTopic, radioInfo);
                     _lastSporadicUpdate = DateTime.UtcNow;
+                    Console.WriteLine($"Published to sporadic topic: {SporadicTopic}");
                 }
-
-                // limit how often we publish (but let sporadic updates pass through w/o regard to content)
-                if (radioInfo.Equals(_lastPublishedRadioInfo)) return;
-
-                // Publish to frequent topic
-                await PublishToTopic(FrequentTopic, radioInfo);
-                _lastPublishedRadioInfo = radioInfo;
             }
             catch (Exception ex)
             {
@@ -492,7 +494,12 @@ public class OmniRigMqttController : IDisposable
             .WithRetainFlag()
             .Build();
 
-        if (!radioInfo.IsConnected) return;
+        if (!radioInfo.IsConnected)
+        {
+            Console.WriteLine($"Not publishing to {topic}: Radio is not connected");
+            return;
+        }
         await _client.EnqueueAsync(message);
+        Console.WriteLine($"Published to {topic}: {payload}");
     }
 }
