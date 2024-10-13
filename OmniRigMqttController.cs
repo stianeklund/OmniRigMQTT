@@ -21,15 +21,19 @@ public class OmniRigMqttController : IDisposable
     private readonly OmniRigInterface _omniRigInterface;
     private RadioInfo _lastPublishedRadioInfo;
     private DateTime _lastSporadicUpdate = DateTime.MinValue;
-    private TaskCompletionSource<bool> _connectionTcs = new TaskCompletionSource<bool>();
+    private readonly TaskCompletionSource<bool> _connectionTcs = new();
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="OmniRigMqttController" /> class.
     /// </summary>
     /// <param name="brokerAddress">The MQTT broker address.</param>
     /// <param name="brokerPort">The MQTT broker port.</param>
+    /// <param name="connectionName"></param>
+    /// <param name="username"></param>
+    /// <param name="password"></param>
     /// <param name="useWebSockets">Whether to use WebSockets for the connection.</param>
-    public OmniRigMqttController(string brokerAddress, int brokerPort, bool useWebSockets = false)
+    public OmniRigMqttController(string brokerAddress, int brokerPort,
+        string? connectionName, string? username = null, string? password = null, bool useWebSockets = false)
     {
         _omniRigInterface = new OmniRigInterface();
         var factory = new MqttFactory();
@@ -45,6 +49,17 @@ public class OmniRigMqttController : IDisposable
             clientOptionsBuilder.WithWebSocketServer($"ws://{brokerAddress}:{brokerPort}/mqtt");
         else
             clientOptionsBuilder.WithTcpServer(brokerAddress, brokerPort);
+
+        // Add authentication if username and password are provided
+        if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+        {
+            clientOptionsBuilder.WithCredentials(username, password);
+            Console.WriteLine("MQTT authentication enabled.");
+        }
+        else
+        {
+            Console.WriteLine("MQTT authentication not used (username or password not provided).");
+        }
 
         var options = new ManagedMqttClientOptionsBuilder()
             .WithAutoReconnectDelay(TimeSpan.FromSeconds(5))
@@ -131,7 +146,8 @@ public class OmniRigMqttController : IDisposable
                         PropertyNameCaseInsensitive = true
                     };
                     commandMessage = JsonSerializer.Deserialize<CommandMessage>(payload, jsonOptions);
-                    Console.WriteLine($"Deserialized command message: {JsonSerializer.Serialize(commandMessage, options: new JsonSerializerOptions { WriteIndented = true })}");
+                    Console.WriteLine(
+                        $"Deserialized command message: {JsonSerializer.Serialize(commandMessage, options: new JsonSerializerOptions { WriteIndented = true })}");
                 }
                 catch (JsonException jsonEx)
                 {
@@ -164,7 +180,8 @@ public class OmniRigMqttController : IDisposable
                     }
 
                     Console.WriteLine($"Processing command: {commandMessage.Command}");
-                    Console.WriteLine($"Command parameters: {JsonSerializer.Serialize(commandMessage.Parameters, new JsonSerializerOptions { WriteIndented = true })}");
+                    Console.WriteLine(
+                        $"Command parameters: {JsonSerializer.Serialize(commandMessage.Parameters, new JsonSerializerOptions { WriteIndented = true })}");
 
                     // Handle the command
                     var response = await HandleCommandAsync(rigId, commandMessage, e.ApplicationMessage);
@@ -222,7 +239,8 @@ public class OmniRigMqttController : IDisposable
         MqttApplicationMessage requestMessage)
     {
         Console.WriteLine($"Handling command for rig {rigId}: {commandMessage.Command}");
-        Console.WriteLine($"Command parameters: {JsonSerializer.Serialize(commandMessage.Parameters, new JsonSerializerOptions { WriteIndented = true })}");
+        Console.WriteLine(
+            $"Command parameters: {JsonSerializer.Serialize(commandMessage.Parameters, new JsonSerializerOptions { WriteIndented = true })}");
 
         var response = new CommandResponse
         {
@@ -264,16 +282,24 @@ public class OmniRigMqttController : IDisposable
                         {
                             // Default to VFO A if no VFO is specified
                             await _omniRigInterface.SetVfoAFrequencyAsync(frequency);
-                            Console.WriteLine($"No VFO specified. Defaulting to VFO A. Setting frequency to {frequency} Hz for rig {rigId}");
+                            Console.WriteLine(
+                                $"No VFO specified. Defaulting to VFO A. Setting frequency to {frequency} Hz for rig {rigId}");
                         }
+
                         response.Status = "success";
-                        response.Result = new { frequency, vfo = commandMessage.Parameters.TryGetValue("vfo", out var v) ? v.GetString() : "A" };
-                        Console.WriteLine($"Frequency set successfully. Response: {JsonSerializer.Serialize(response)}");
+                        response.Result = new
+                        {
+                            frequency,
+                            vfo = commandMessage.Parameters.TryGetValue("vfo", out var v) ? v.GetString() : "A"
+                        };
+                        Console.WriteLine(
+                            $"Frequency set successfully. Response: {JsonSerializer.Serialize(response)}");
                     }
                     else
                     {
                         throw new Exception("Parameter 'frequency' is missing.");
                     }
+
                     break;
 
                 case "set_mode":
@@ -334,7 +360,8 @@ public class OmniRigMqttController : IDisposable
             response.ErrorMessage = ex.Message;
         }
 
-        Console.WriteLine($"Command response: {JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true })}");
+        Console.WriteLine(
+            $"Command response: {JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true })}");
         return response;
     }
 
@@ -465,6 +492,5 @@ public class OmniRigMqttController : IDisposable
 
         if (!radioInfo.IsConnected) return;
         await _client.EnqueueAsync(message);
-        Console.WriteLine($"Published to {topic}: {payload}");
     }
 }

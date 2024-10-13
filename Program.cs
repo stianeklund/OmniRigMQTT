@@ -16,13 +16,20 @@ public class Program
         try
         {
             // Initialize OmniRigMqttController
-            _omniRigMqtt = new OmniRigMqttController(config.MqttBroker.Address, config.MqttBroker.Port,
-                config.MqttBroker.UseWebSockets);
+            _omniRigMqtt = new OmniRigMqttController(
+                config.MqttBroker.Address,
+                config.MqttBroker.Port,
+                config.MqttBroker.ConnectionName,
+                username: config.MqttBroker.Username,
+                password: config.MqttBroker.Password, useWebSockets: config.MqttBroker.UseWebSockets);
 
             // Wait for the MQTT client to connect
             await _omniRigMqtt.WaitForConnectionAsync(TimeSpan.FromSeconds(30));
 
-            if (args.Length == 3) HandleCommandLineArguments(args, config);
+            if (args.Length == 3)
+            {
+                HandleCommandLineArguments(args, config);
+            }
 
             var udpMessageSender = new UdpMessageSender(config.UdpSender.Address, config.UdpSender.Port);
             var udpMessageReceiver = new UdpMessageReceiver(config.UdpReceiverPort, OmniRigInterface);
@@ -87,6 +94,16 @@ public class Program
                 config.MqttBroker.Port = int.Parse(args[2]);
                 ConfigurationManager.SaveConfiguration(config);
                 Console.WriteLine($"Updated sender address to: {args[1]} and port to: {args[2]}");
+                break;
+            case "--set-mqtt-username":
+                config.MqttBroker.Username = args[1];
+                ConfigurationManager.SaveConfiguration(config);
+                Console.WriteLine($"Updated MQTT username to: {args[1]}");
+                break;
+            case "--set-mqtt-password":
+                config.MqttBroker.Password = args[1];
+                ConfigurationManager.SaveConfiguration(config);
+                Console.WriteLine($"Updated MQTT password");
                 break;
         }
     }
