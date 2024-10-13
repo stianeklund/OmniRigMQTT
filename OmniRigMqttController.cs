@@ -458,9 +458,6 @@ public class OmniRigMqttController : IDisposable
             {
                 var radioInfo = await _omniRigInterface.GetRadioInfoAsyncRig1();
 
-                // Publish to frequent topic
-                await PublishToTopic(FrequentTopic, radioInfo);
-
                 // Check if it's time for a sporadic update
                 if (DateTime.UtcNow - _lastSporadicUpdate >= sporadicInterval)
                 {
@@ -468,6 +465,11 @@ public class OmniRigMqttController : IDisposable
                     _lastSporadicUpdate = DateTime.UtcNow;
                 }
 
+                // limit how often we publish (but let sporadic updates pass through w/o regard to content)
+                if (radioInfo.Equals(_lastPublishedRadioInfo)) return;
+
+                // Publish to frequent topic
+                await PublishToTopic(FrequentTopic, radioInfo);
                 _lastPublishedRadioInfo = radioInfo;
             }
             catch (Exception ex)
